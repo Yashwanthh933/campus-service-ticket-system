@@ -1,36 +1,22 @@
 import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import gsap from 'gsap';
 
 export const LoginBackground3D: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const svgPathRef = useRef<SVGPathElement>(null);
 
   useEffect(() => {
     const container = containerRef.current;
-    const path = svgPathRef.current;
-    if (!container || !path) return;
+    if (!container) return;
 
     /* THREE SCENE SETUP */
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(
-      75,
+      45,
       window.innerWidth / window.innerHeight,
-      0.1,
-      5000
+      1,
+      4000
     );
-
-    // Responsive camera Z distance based on screen width
-    const updateCameraZ = () => {
-      if (window.innerWidth < 640) {
-        camera.position.z = 750;
-      } else if (window.innerWidth < 1024) {
-        camera.position.z = 600;
-      } else {
-        camera.position.z = 500;
-      }
-    };
-    updateCameraZ();
+    camera.position.z = 1000;
 
     const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -40,75 +26,84 @@ export const LoginBackground3D: React.FC = () => {
     renderer.domElement.style.left = '0';
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
-
     container.appendChild(renderer.domElement);
 
-    /* PARTICLES & GSAP ANIMATION */
-    const tl = gsap.timeline({
-      repeat: -1,
-      yoyo: true,
-    });
+    /* CONSTELLATION PARTICLES SETUP */
+    const maxParticleCount = 120;
+    const r = 800;
+    const rHalf = r / 2;
+    const minDistance = 150;
 
-    const length = path.getTotalLength();
-    const vertices: THREE.Vector3[] = [];
+    const particlesData: Array<{ velocity: THREE.Vector3; numConnections: number }> = [];
+    const positions = new Float32Array(maxParticleCount * 3);
+    const colors = new Float32Array(maxParticleCount * 3);
 
-    // Step length for sampling points along the SVG path
-    const step = length > 2000 ? 0.25 : 0.15;
+    const pGeometry = new THREE.BufferGeometry();
 
-    for (let i = 0; i < length; i += step) {
-      const point = path.getPointAtLength(i);
-      const vector = new THREE.Vector3(point.x, -point.y, 0);
-      vector.x += (Math.random() - 0.5) * 30;
-      vector.y += (Math.random() - 0.5) * 30;
-      vector.z += (Math.random() - 0.5) * 70;
-      vertices.push(vector);
+    for (let i = 0; i < maxParticleCount; i++) {
+      const x = Math.random() * r - rHalf;
+      const y = Math.random() * r - rHalf;
+      const z = Math.random() * r - rHalf;
 
-      tl.from(
-        vector,
-        {
-          x: 600 / 2,
-          y: -552 / 2,
-          z: 0,
-          ease: 'power2.inOut',
-          duration: Math.random() * 3 + 2,
-        },
-        i * 0.002
-      );
+      positions[i * 3] = x;
+      positions[i * 3 + 1] = y;
+      positions[i * 3 + 2] = z;
+
+      // Color scheme: Indigo/Cyan
+      const mix = Math.random();
+      colors[i * 3] = mix * 0.3 + 0.1; // R
+      colors[i * 3 + 1] = mix * 0.5 + 0.3; // G
+      colors[i * 3 + 2] = 0.9; // B
+
+      particlesData.push({
+        velocity: new THREE.Vector3(
+          (-1 + Math.random() * 2) * 0.8,
+          (-1 + Math.random() * 2) * 0.8,
+          (-1 + Math.random() * 2) * 0.8
+        ),
+        numConnections: 0,
+      });
     }
 
-    const geometry = new THREE.BufferGeometry().setFromPoints(vertices);
-    const material = new THREE.PointsMaterial({
-      color: 0xee5282,
+    pGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    pGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+    const pMaterial = new THREE.PointsMaterial({
+      size: 4,
+      vertexColors: true,
       blending: THREE.AdditiveBlending,
-      size: 3,
       transparent: true,
-      opacity: 0.9,
+      opacity: 0.85,
     });
 
-    const particles = new THREE.Points(geometry, material);
-    particles.position.x -= 600 / 2;
-    particles.position.y += 552 / 2;
-    scene.add(particles);
+    const pointCloud = new THREE.Points(pGeometry, pMaterial);
+    scene.add(pointCloud);
 
-    // Subtle ambient rotation tween
-    const rotationTween = gsap.fromTo(
-      scene.rotation,
-      { y: -0.25 },
-      {
-        y: 0.25,
-        repeat: -1,
-        yoyo: true,
-        ease: 'power2.inOut',
-        duration: 3.5,
-      }
-    );
+    /* LINES SETUP */
+    const maxConnections = 400;
+    const linePositions = new Float32Array(maxConnections * 2 * 3);
+    const lineColors = new Float32Array(maxConnections * 2 * 3);
 
-    /* MOUSE PARALLAX INTERACTION */
+    const lineGeometry = new THREE.BufferGeometry();
+    lineGeometry.setAttribute('position', new THREE.BufferAttribute(linePositions, 3));
+    lineGeometry.setAttribute('color', new THREE.BufferAttribute(lineColors, 3));
+
+    const lineMaterial = new THREE.LineBasicMaterial({
+      vertexColors: true,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      linewidth: 1,
+    });
+
+    const lineSegments = new THREE.LineSegments(lineGeometry, lineMaterial);
+    scene.add(lineSegments);
+
+    /* MOUSE INTERACTION */
     let mouseX = 0;
     let mouseY = 0;
     const handleMouseMove = (e: MouseEvent) => {
-      mouseX = (e.clientX / window.innerWidth - 0.5) * 0.3;
-      mouseY = (e.clientY / window.innerHeight - 0.5) * 0.3;
+      mouseX = (e.clientX / window.innerWidth - 0.5) * 2;
+      mouseY = (e.clientY / window.innerHeight - 0.5) * 2;
     };
     window.addEventListener('mousemove', handleMouseMove);
 
@@ -116,16 +111,90 @@ export const LoginBackground3D: React.FC = () => {
     let animationFrameId: number;
     const render = () => {
       animationFrameId = requestAnimationFrame(render);
-      // Smooth mouse follow
-      scene.rotation.x += (mouseY - scene.rotation.x) * 0.05;
-      geometry.setFromPoints(vertices);
+
+      // Rotate group slowly
+      const time = Date.now() * 0.001;
+      pointCloud.rotation.y = time * 0.05;
+      lineSegments.rotation.y = time * 0.05;
+
+      let vertexpos = 0;
+      let colorpos = 0;
+
+      for (let i = 0; i < maxParticleCount; i++) {
+        // update particle position
+        positions[i * 3] += particlesData[i].velocity.x;
+        positions[i * 3 + 1] += particlesData[i].velocity.y;
+        positions[i * 3 + 2] += particlesData[i].velocity.z;
+
+        // boundary check
+        if (positions[i * 3] < -rHalf || positions[i * 3] > rHalf) {
+          particlesData[i].velocity.x = -particlesData[i].velocity.x;
+        }
+        if (positions[i * 3 + 1] < -rHalf || positions[i * 3 + 1] > rHalf) {
+          particlesData[i].velocity.y = -particlesData[i].velocity.y;
+        }
+        if (positions[i * 3 + 2] < -rHalf || positions[i * 3 + 2] > rHalf) {
+          particlesData[i].velocity.z = -particlesData[i].velocity.z;
+        }
+      }
+
+      // Check connections
+      for (let i = 0; i < maxParticleCount; i++) {
+        const x1 = positions[i * 3];
+        const y1 = positions[i * 3 + 1];
+        const z1 = positions[i * 3 + 2];
+
+        for (let j = i + 1; j < maxParticleCount; j++) {
+          const x2 = positions[j * 3];
+          const y2 = positions[j * 3 + 1];
+          const z2 = positions[j * 3 + 2];
+
+          const dx = x1 - x2;
+          const dy = y1 - y2;
+          const dz = z1 - z2;
+          const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+          if (dist < minDistance && vertexpos < maxConnections * 2 * 3) {
+            const alpha = 1.0 - dist / minDistance;
+
+            linePositions[vertexpos++] = x1;
+            linePositions[vertexpos++] = y1;
+            linePositions[vertexpos++] = z1;
+
+            linePositions[vertexpos++] = x2;
+            linePositions[vertexpos++] = y2;
+            linePositions[vertexpos++] = z2;
+
+            // Fading lines
+            lineColors[colorpos++] = 0.2 * alpha;
+            lineColors[colorpos++] = 0.4 * alpha;
+            lineColors[colorpos++] = 0.8 * alpha;
+
+            lineColors[colorpos++] = 0.2 * alpha;
+            lineColors[colorpos++] = 0.4 * alpha;
+            lineColors[colorpos++] = 0.8 * alpha;
+          }
+        }
+      }
+
+      pGeometry.attributes.position.needsUpdate = true;
+      lineGeometry.attributes.position.needsUpdate = true;
+      lineGeometry.attributes.color.needsUpdate = true;
+
+      // Draw lines count update
+      lineGeometry.setDrawRange(0, vertexpos / 3);
+
+      // Smooth camera parallax
+      camera.position.x += (mouseX * 250 - camera.position.x) * 0.05;
+      camera.position.y += (-mouseY * 250 - camera.position.y) * 0.05;
+      camera.lookAt(scene.position);
+
       renderer.render(scene, camera);
     };
     render();
 
     /* RESIZE LISTENER */
     const handleResize = () => {
-      updateCameraZ();
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
@@ -137,10 +206,10 @@ export const LoginBackground3D: React.FC = () => {
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('mousemove', handleMouseMove);
       cancelAnimationFrame(animationFrameId);
-      tl.kill();
-      rotationTween.kill();
-      geometry.dispose();
-      material.dispose();
+      pGeometry.dispose();
+      pMaterial.dispose();
+      lineGeometry.dispose();
+      lineMaterial.dispose();
       if (renderer.domElement && container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);
       }
@@ -150,15 +219,6 @@ export const LoginBackground3D: React.FC = () => {
 
   return (
     <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-      {/* Hidden SVG Path used for particle calculation */}
-      <svg className="hidden absolute" viewBox="0 0 600 552" style={{ display: 'none' }}>
-        <path
-          ref={svgPathRef}
-          d="M300,107.77C284.68,55.67,239.76,0,162.31,0,64.83,0,0,82.08,0,171.71c0,.48,0,.95,0,1.43-.52,19.5,0,217.94,299.87,379.69v0l0,0,.05,0,0,0,0,0v0C600,391.08,600.48,192.64,600,173.14c0-.48,0-.95,0-1.43C600,82.08,535.17,0,437.69,0,360.24,0,315.32,55.67,300,107.77"
-        />
-      </svg>
-
-      {/* 3D Canvas Mount Point */}
       <div ref={containerRef} className="absolute inset-0" />
     </div>
   );

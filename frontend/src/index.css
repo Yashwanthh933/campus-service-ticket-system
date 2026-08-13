@@ -128,3 +128,20 @@
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(99, 102, 241, 0.7);
 }
+
+/* Scanner Laser Line Animation */
+@keyframes scan {
+  0% {
+    top: -5%;
+  }
+  50% {
+    top: 105%;
+  }
+  100% {
+    top: -5%;
+  }
+}
+
+.animate-scan {
+  animation: scan 8s ease-in-out infinite;
+}

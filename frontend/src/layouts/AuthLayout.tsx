@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { LoginBackground3D } from '../components/LoginBackground3D';
 import { ShieldCheck } from 'lucide-react';
 import { ThemeToggle } from '../components/ThemeToggle';
+import campusImg from '../assets/campus.png';
 
 export const AuthLayout: React.FC = () => {
   return (
@@ -13,7 +14,18 @@ export const AuthLayout: React.FC = () => {
         <ThemeToggle />
       </div>
 
-      {/* 3D R3F Canvas Background */}
+      {/* Background Image of Campus */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center z-0 opacity-25 dark:opacity-20 mix-blend-luminosity scale-105 pointer-events-none"
+        style={{ backgroundImage: `url(${campusImg})` }}
+      />
+      {/* Dark overlay for readability */}
+      <div className="absolute inset-0 bg-gradient-to-tr from-slate-950 via-slate-950/85 to-indigo-950/50 z-0 pointer-events-none" />
+
+      {/* Scanning laser line */}
+      <div className="absolute w-full h-[2px] bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent top-0 left-0 animate-scan pointer-events-none z-10" />
+
+      {/* 3D Constellation Security Background */}
       <LoginBackground3D />
 
       {/* Decorative ambient background glows */}
@@ -29,14 +41,21 @@ export const AuthLayout: React.FC = () => {
           className="space-y-6"
         >
           <div className="text-center space-y-2">
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-              className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 text-indigo-400 mb-2 glow-indigo"
-            >
-              <ShieldCheck className="w-8 h-8" />
-            </motion.div>
+            <div className="relative inline-flex items-center justify-center mb-2">
+              {/* Pulsing radar rings for security effect */}
+              <span className="absolute inline-flex h-14 w-14 rounded-2xl bg-indigo-500/30 animate-ping opacity-75" />
+              <span className="absolute inline-flex h-20 w-20 rounded-full bg-indigo-500/10 animate-pulse" />
+              
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+                className="relative z-10 inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 text-indigo-400 glow-indigo"
+              >
+                <ShieldCheck className="w-8 h-8" />
+              </motion.div>
+            </div>
+            
             <h2 className="text-center text-3xl font-extrabold text-white tracking-tight font-sans">
               Campus Service Portal
             </h2>
